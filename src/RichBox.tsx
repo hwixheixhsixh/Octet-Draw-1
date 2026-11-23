@@ -145,6 +145,9 @@ export function RichBox(p: Props) {
       }}
       onDrop={(e) => e.preventDefault()}
       onKeyDown={(e) => {
+        // While an input method is composing — a Chinese, Japanese or Korean keyboard choosing a character — Return
+        // and Escape belong to it: Return takes the character it offers, Escape puts it away.
+        if (e.nativeEvent.isComposing || (e.nativeEvent as KeyboardEvent).keyCode === 229) return;
         // A new line with Return (as ChemDraw's captions, unless its preference asks for Option-Return), and always with
         // Option- or Shift-Return; the browser's own bold, italic and underline are not used (Octet's are).
         if (e.key === "Enter" && (e.shiftKey || e.altKey || p.returnNewLine)) { e.preventDefault(); insert("\n"); return; }

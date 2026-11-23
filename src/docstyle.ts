@@ -134,8 +134,17 @@ export const sizesAt = (scale: number) => [...new Set(SIZES.map((pt) => sizeAt(p
 // refused, so a name from a file cannot break out of a style.
 export const fontName = (f: unknown): f is string => typeof f === "string" && f.trim() === f && /^[^"'\\;{}<>\u0000-\u001f]{1,64}$/.test(f);
 // A font with fallbacks that keep its metrics close on every platform.
+// A Latin font has no Chinese glyphs in it, so the system picks a font for each character on its own: the shape and
+// the weight then differ from the Latin beside it in the same label, and again between the screen and an export. A
+// Chinese family named after the Latin one keeps the choice to one the user recognises — a sans for the sans fonts, a
+// serif for the serifs. Names only: nothing is bundled, and a platform without one falls through to the next.
+const CJK_SANS = '"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC", "SimHei", "DengXian"';
+const CJK_SERIF = '"SimSun", "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC"';
 export const fontStack = (f: string) =>
-  f === "Helvetica" ? "Helvetica, Arial, sans-serif" : f === "Arial" ? "Arial, Helvetica, sans-serif" : /Times|Georgia|Cambria/.test(f) ? `"${f}", "Times New Roman", serif` : `"${f}", Arial, sans-serif`;
+  f === "Helvetica" ? `Helvetica, Arial, ${CJK_SANS}, sans-serif`
+  : f === "Arial" ? `Arial, Helvetica, ${CJK_SANS}, sans-serif`
+  : /Times|Georgia|Cambria/.test(f) ? `"${f}", "Times New Roman", ${CJK_SERIF}, serif`
+  : `"${f}", Arial, ${CJK_SANS}, sans-serif`;
 
 // Text colours: black for print, then the brand's colours. Any other colour can be picked too.
 export const COLOURS: [string, string][] = [

@@ -137,6 +137,9 @@ export function lines(runs: TextRun[]): TextRun[][] {
 // keeps it no wider than max, and a word wider than max goes on a line of its own. A breaking space becomes a line
 // break, so every character keeps its place. width: how wide a piece of text is in a run's style. soft: the places
 // of the breaks made.
+// The characters a line may break after in Chinese, Japanese and Korean text: those languages have no spaces, so a
+// caption that only breaks at spaces has no break in it at all and runs off the page.
+const CJK_BREAK = /[\u2E80-\u9FFF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFF60]/;
 export function wrap(runs: TextRun[], max: number, width: (text: string, style: RunStyle) => number): { runs: TextRun[]; soft: number[] } {
   const text = plainOf(runs), soft: number[] = [];
   const measure = (a: number, b: number) => {
@@ -155,18 +158,40 @@ export function wrap(runs: TextRun[], max: number, width: (text: string, style: 
     while (measure(from, end) > max) {
       let brk = -1;
       for (let i = from + 1; i < end; i++) {
-        if (text[i] !== " ") continue;
+        // A space is a break, and so is the place between two characters of a language that has none.
+        if (text[i] !== " " && !CJK_BREAK.test(text[i]) && !CJK_BREAK.test(text[i - 1])) continue;
         if (measure(from, i) <= max || brk < 0) brk = i;
         if (measure(from, i) > max) break;
       }
       if (brk < 0) break;
       soft.push(brk);
-      from = brk + 1;
+      // A break at a space takes that space in; a break between Chinese characters leaves the character to the next
+      // line, since it is not a space to be spent.
+      from = text[brk] === " " ? brk + 1 : brk;
     }
     start = end + 1;
   }
   if (!soft.length) return { runs, soft };
   const breaks = new Set(soft);
-  let at = 0;
-  return { runs: runs.map((r) => { const t = r.text.split("").map((ch, k) => (breaks.has(at + k) ? "\n" : ch)).join(""); at += r.text.length; return { ...r, text: t }; }), soft };
+  // A break at a space becomes the newline itself, so every character keeps its place. A break between Chinese
+  // characters goes in front of the character, which stays: a line break must never take a character with it.
+  // soft indexes the text as returned here, and an inserted newline shifts every index after it, so the places of the
+  // breaks are counted again rather than passed on.
+  const placed: number[] = [];
+  let at = 0, out = 0;
+  const wrapped = runs.map((r) => {
+    let s = "";
+    for (let k = 0; k < r.text.length; k++) {
+      const ch = r.text[k];
+      if (breaks.has(at + k)) {
+        placed.push(out);
+        s += "\n";
+        out++;
+        if (ch !== " ") { s += ch; out++; }
+      } else { s += ch; out++; }
+    }
+    at += r.text.length;
+    return { ...r, text: s };
+  });
+  return { runs: wrapped, soft: placed };
 }

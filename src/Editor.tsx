@@ -9945,6 +9945,9 @@ export default function Editor() {
               color: (chosen === "element" ? by[editing.value.trim()] : chosen) ?? a.colour }}
             onRuns={(runs, rebuild) => setEditing((w) => w && { ...w, runs, value: plainOf(runs), ...(rebuild ? { version: (w.version ?? 0) + 1, caret: rebuild, pending: undefined } : {}) })}
             onKeyDown={(e) => {
+              // While an input method is composing, Return takes the character it offers and Escape puts it away:
+              // neither commits a half-typed label.
+              if (e.nativeEvent.isComposing || (e.nativeEvent as KeyboardEvent).keyCode === 229) return;
               // Return reaches here only when it does not make a new line.
               if (e.key === "Enter" && !e.shiftKey && !e.altKey) { e.preventDefault(); commit(); }
               if (e.key === "Escape") { e.preventDefault(); commit(); }
@@ -10030,6 +10033,8 @@ export default function Editor() {
                 if (!e.shiftKey && j % cols === 0 && cols > 1 && (sh.table!.cells[j / cols]?.[0] ?? String(j / cols)) === String(j / cols)) j++;
                 return commitCell([Math.floor(j / cols), j % cols]);
               }
+              // The same in a table cell: while composing, Return picks a character and stays in the cell.
+              if (e.nativeEvent.isComposing || (e.nativeEvent as KeyboardEvent).keyCode === 229) return;
               if ((e.key === "Enter" && !e.shiftKey) || e.key === "ArrowDown") { e.preventDefault(); return cell.r + 1 < t.rows ? commitCell([cell.r + 1, cell.c]) : commitCell(); }
               if (e.key === "ArrowUp" || e.key === "Enter") { e.preventDefault(); return commitCell([Math.max(0, cell.r - 1), cell.c]); }
               if (e.key === "Escape") { e.preventDefault(); return commitCell(); }
@@ -10085,6 +10090,8 @@ export default function Editor() {
                 if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "v") { e.preventDefault(); return keepFormatting(); }
                 if (!["Shift", "Meta", "Control", "Alt"].includes(e.key)) setPasteOffer(undefined);
               }
+              // And the same in a text box: Return while composing does not end the editing.
+              if (e.nativeEvent.isComposing || (e.nativeEvent as KeyboardEvent).keyCode === 229) return;
               // Return reaches here only when it does not make a new line (Settings: Option-Return for a new line).
               if (e.key === "Enter" && !e.shiftKey && !e.altKey) { e.preventDefault(); commitWriting(); }
               if (e.key === "Tab" && tabField(e.shiftKey)) e.preventDefault();
